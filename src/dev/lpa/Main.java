@@ -91,7 +91,8 @@ public class Main {
         var infoMap = folderSizes.get(dir);
         folderSizes.merge(dir.getParent(), Info.getEmptyMap(), (o, n) -> {
           for (var i : Info.values()) {
-            o.merge(i, 0L, (o2, n2) -> i == Info.FOLDERS ? (o2 + 1) : o2 + infoMap.get(i));
+            o.merge(i, 0L,
+              (o2, n2) -> i == Info.FOLDERS ? (o2 + infoMap.get(i) + 1) : o2 + infoMap.get(i));
           }
           return o;
         });
