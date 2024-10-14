@@ -11,10 +11,11 @@ public class Main {
 
   public static void main(String[] args) {
 
-    Path startingPath = Path.of("."); // working directory
-    FileVisitor<Path> statsVisitor = new StatsVisitor();
+    Path startingPath = Path.of(".."); // working directory ., .. is parent dir
+    FileVisitor<Path> statsVisitor = new StatsVisitor(1);
     try {
       Files.walkFileTree(startingPath, statsVisitor); // resource closed as part of execution
+      // often anonymous class passed
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -26,6 +27,12 @@ public class Main {
     private Path initialPath = null;
     private final Map<Path, Long> folderSizes = new LinkedHashMap<>();
     private int initialCount;
+
+    private int printLevel;
+
+    public StatsVisitor(int printLevel) {
+      this.printLevel = printLevel;
+    }
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -74,8 +81,10 @@ public class Main {
         folderSizes.forEach((key, value) -> {
 
           int level = key.getNameCount() - initialCount - 1;
-          System.out.printf("%s[%s] - %,d bytes %n",
-            "\t".repeat(level), key.getFileName(), value);
+          if (level < printLevel) {
+            System.out.printf("%s[%s] - %,d bytes %n",
+              "\t".repeat(level), key.getFileName(), value);
+          }
         });
       } else {
         long folderSize = folderSizes.get(dir);
