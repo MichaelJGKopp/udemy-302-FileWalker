@@ -18,13 +18,7 @@ public class ChallengeStreams {
         .filter(Files::isRegularFile)
         .collect(Collectors.groupingBy(p -> p.subpath(index, index + 1),
           Collectors.summarizingLong(
-            (p -> {
-              try {
-                return Files.size(p);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            }))))
+          p -> p.toFile().length())))
         .entrySet()
         .stream()
         .sorted(Comparator.comparing(Map.Entry::getKey))
