@@ -21,6 +21,7 @@ public class ChallengeStreams {
           p -> p.toFile().length())))
         .entrySet()
         .stream()
+        .filter(e -> e.getValue().getSum() > 50_000)
         .sorted(Comparator.comparing(Map.Entry::getKey))
         .forEach(entry -> System.out.printf("[%s] %,d bytes, %d files %n",
               entry.getKey(), entry.getValue().getSum(), entry.getValue().getCount()
