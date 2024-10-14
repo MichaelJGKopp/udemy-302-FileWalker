@@ -3,16 +3,14 @@ package dev.lpa;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class Main {
 
   public static void main(String[] args) {
 
-    Path startingPath = Path.of(".."); // working directory ., .. is parent dir
-    FileVisitor<Path> statsVisitor = new StatsVisitor(1);
+    Path startingPath = Path.of("."); // working directory ., .. is parent dir
+    FileVisitor<Path> statsVisitor = new StatsVisitor(Integer.MAX_VALUE);
     try {
       Files.walkFileTree(startingPath, statsVisitor); // resource closed as part of execution
       // often anonymous class passed
@@ -25,7 +23,7 @@ public class Main {
   private static class StatsVisitor extends SimpleFileVisitor<Path> {
 
     private Path initialPath = null;
-    private final Map<Path, Long> folderSizes = new LinkedHashMap<>();
+    private final Map<Path, Map<Info, Long>> folderSizes = new LinkedHashMap<>();
     private int initialCount;
 
     private int printLevel;
@@ -40,8 +38,14 @@ public class Main {
       Objects.requireNonNull(file);   // throws NullPointerException if arg == null
       Objects.requireNonNull(attrs);
 
-//      folderSizes.merge(initialPath, Files.size(file), Long::sum);
-      folderSizes.merge(file.getParent(), 0L, (o, n) -> o += attrs.size());
+      folderSizes.merge(file.getParent(), Info.getEmptyMap(), (o, n) -> {
+        Long[] infoAr = {attrs.size(), 1L, 0L};
+        int[] j = {0};
+        for (var i : Info.values()) {
+          o.merge(i, 0L, (o2, n2) -> o2 += infoAr[j[0]++]);
+        }
+        return o;
+      });
       return FileVisitResult.CONTINUE;
     }
 
@@ -59,7 +63,7 @@ public class Main {
         if (relativeLevel == 1) {
           folderSizes.clear();
         }
-        folderSizes.put(dir, 0L);
+        folderSizes.put(dir, Info.getEmptyMap());
       }
       return FileVisitResult.CONTINUE;
     }
@@ -68,9 +72,6 @@ public class Main {
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
 
       Objects.requireNonNull(dir);
-//      if (exc != null) {
-//        throw exc;
-//      }
 
       if (dir.equals(initialPath)) {
         return FileVisitResult.TERMINATE;
@@ -79,17 +80,21 @@ public class Main {
       int relativeLevel = dir.getNameCount() - initialCount;
       if (relativeLevel == 1) {
         folderSizes.forEach((key, value) -> {
-
           int level = key.getNameCount() - initialCount - 1;
           if (level < printLevel) {
-            System.out.printf("%s[%s] - %,d bytes %n",
-              "\t".repeat(level), key.getFileName(), value);
+            System.out.printf("%s[%s] - %,d bytes\tFiles %d\tFolders %d %n",
+              "\t".repeat(level), key.getFileName(),
+              value.get(Info.SIZE), value.get(Info.FILES), value.get(Info.FOLDERS));
           }
         });
       } else {
-        long folderSize = folderSizes.get(dir);
-        folderSizes.merge(dir.getParent(), 0L, (o, n) -> o += folderSize);
-//        folderSizes.merge(dir.getParent(), folderSize, Long::sum);
+        var infoMap = folderSizes.get(dir);
+        folderSizes.merge(dir.getParent(), Info.getEmptyMap(), (o, n) -> {
+          for (var i : Info.values()) {
+            o.merge(i, 0L, (o2, n2) -> i == Info.FOLDERS ? (o2 + 1) : o2 + infoMap.get(i));
+          }
+          return o;
+        });
       }
 
       return FileVisitResult.CONTINUE;
